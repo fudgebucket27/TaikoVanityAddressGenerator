@@ -7,6 +7,8 @@ using System.Security.Cryptography;
 using Nethereum.ABI.FunctionEncoding;
 using Nethereum.ABI;
 using System.Numerics;
+using Nethereum.Signer;
+using TaikoVanityAddressGenerator;
 
 class Program
 {
@@ -15,11 +17,29 @@ class Program
     static void Main(string[] args)
     {
         string deployerAddress = "0xe7d8df8F6546965A59dab007e8709965Efe1255d"; //This is the deploy address of taiko l2 wallet on mainnet
-        string ownerAddress = "0x36Cd6b3b9329c04df55d55D41C257a5fdD387ACd"; //Replace with your EOA owner address
-        string desiredPattern = "0x69420"; //Your desired pattern at the start of the address.
+        string ownerAddress = "0xC14B11925dbfbb3Bfa174ABA8d5367766cC9C35E"; //Replace with your EOA owner address
+        string desiredPattern = "0xfudgey"; //Your desired pattern at the start of the address.
 
         // Find the salt that generates the desired pattern
-        string matchingSalt = FindVanityAddress(ownerAddress, deployerAddress, desiredPattern);
+        //string matchingSalt = FindVanityAddress(ownerAddress, deployerAddress, desiredPattern);
+
+        var config = new WalletConfig
+        {
+            Owner = ownerAddress,
+            Guardians = new string[] {},
+            Quota = 0,
+            Inheritor = "0x0000000000000000000000000000000000000000",
+            FeeRecipient = "0xDd2A08a1c1A28c1A571E098914cA10F2877D9c97",
+            FeeToken = "0x0000000000000000000000000000000000000000",
+            MaxFeeAmount = 0,
+            Salt = 0
+        };
+
+        var domainSeparator = "0x1234567890abcdef..."; // Replace with the actual domain separator
+        var signHash = WalletHelper.ComputeSignHash(config, domainSeparator);
+        var privateKey = "0xabcdef..."; // Replace with the wallet owner's private key
+        var signature = WalletHelper.SignHash(signHash, privateKey);
+        Console.WriteLine($"Signature: {signature}");
     }
 
     static string FindVanityAddress(string ownerAddress, string deployerAddress, string desiredPattern)
@@ -95,5 +115,57 @@ class Program
         BigInteger salt = new BigInteger(saltBytes);
         salt = BigInteger.Abs(salt); // Ensure the salt is non-negative
         return "0x" + salt.ToString("x64");
+    }
+
+    public static class EIP712
+    {
+        public static string HashPacked(string domainSeparator, string dataHash)
+        {
+            var packedData = "0x1901" + domainSeparator.Substring(2) + dataHash.Substring(2);
+            return Sha3Keccack.Current.CalculateHashFromHex(packedData);
+        }
+    }
+
+    public static class WalletHelper
+    {
+        public static string ComputeSignHash(WalletConfig config, string domainSeparator)
+        {
+            var createWalletTypeHash = CreateWalletTypeHash();
+
+            var guardiansHex = config.Guardians.Select(guardian => guardian.StartsWith("0x") ? guardian.Substring(2) : guardian).ToArray();
+            var guardiansHash = Sha3Keccack.Current.CalculateHash(string.Join("", guardiansHex));
+
+            var dataInput = string.Concat(
+                createWalletTypeHash.Substring(2),
+                config.Owner.StartsWith("0x") ? config.Owner.Substring(2) : config.Owner,
+                guardiansHash,
+                config.Quota.ToString("x"),
+                config.Inheritor.StartsWith("0x") ? config.Inheritor.Substring(2) : config.Inheritor,
+                config.FeeRecipient.StartsWith("0x") ? config.FeeRecipient.Substring(2) : config.FeeRecipient,
+                config.FeeToken.StartsWith("0x") ? config.FeeToken.Substring(2) : config.FeeToken,
+                config.MaxFeeAmount.ToString("x"),
+                config.Salt.ToString("x")
+            );
+
+            var dataHash = Sha3Keccack.Current.CalculateHash(dataInput);
+
+            var signHash = EIP712.HashPacked(domainSeparator, dataHash);
+            return signHash;
+        }
+
+        public static string CreateWalletTypeHash()
+        {
+            string functionSignature = "createWallet(address owner,address[] guardians,uint256 quota,address inheritor,address feeRecipient,address feeToken,uint256 maxFeeAmount,uint256 salt)";
+            string typeHash = Sha3Keccack.Current.CalculateHash(functionSignature);
+            return typeHash;
+        }
+
+
+        public static string SignHash(string signHash, string privateKey)
+        {
+            var signer = new EthereumMessageSigner();
+            var signature = signer.EncodeUTF8AndSign(signHash, new EthECKey(privateKey));
+            return signature;
+        }
     }
 }
