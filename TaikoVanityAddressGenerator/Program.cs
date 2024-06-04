@@ -20,7 +20,6 @@ class Program
 
         // Find the salt that generates the desired pattern
         string matchingSalt = FindVanityAddress(ownerAddress, deployerAddress, desiredPattern);
-        Console.WriteLine($"Found matching salt: {matchingSalt}");
     }
 
     static string FindVanityAddress(string ownerAddress, string deployerAddress, string desiredPattern)
@@ -43,8 +42,8 @@ class Program
             if (create2Address.StartsWith(desiredPattern, StringComparison.OrdinalIgnoreCase))
             {
                 saltUint256 = BigInteger.Parse(saltHex.Substring(2), System.Globalization.NumberStyles.HexNumber);
-                Console.WriteLine($"Found matching address: {create2Address} with salt: {saltHex}");
-                Console.WriteLine($"Salt as uint256: {saltUint256}");
+                Console.WriteLine($"Found matching address: {create2Address} with salt: {saltUint256}");
+                Console.WriteLine($"Salt: {saltUint256}");
                 found = true;
             }
         }
