@@ -15,8 +15,8 @@ class Program
     static void Main(string[] args)
     {
         string deployerAddress = "0xe7d8df8F6546965A59dab007e8709965Efe1255d"; //This is the deploy address of taiko l2 wallet on mainnet
-        string ownerAddress = "0x36Cd6b3b9329c04df55d55D41C257a5fdD387ACd"; //Replace with your EOA owner address
-        string desiredPattern = "0x69420"; //Your desired pattern at the start of the address.
+        string ownerAddress = "0xC14B11925dbfbb3Bfa174ABA8d5367766cC9C35E"; //Replace with your EOA owner address
+        string desiredPattern = "0xbebe91"; //Your desired pattern at the start of the address.
 
         // Find the salt that generates the desired pattern
         string matchingSalt = FindVanityAddress(ownerAddress, deployerAddress, desiredPattern);
