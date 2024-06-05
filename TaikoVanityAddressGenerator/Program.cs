@@ -9,6 +9,7 @@ using Nethereum.ABI;
 using System.Numerics;
 using Nethereum.Signer;
 using TaikoVanityAddressGenerator;
+using Microsoft.Extensions.Configuration;
 
 class Program
 {
@@ -16,9 +17,10 @@ class Program
   
     static void Main(string[] args)
     {
+        IConfiguration configuration = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
         string deployerAddress = "0xe7d8df8F6546965A59dab007e8709965Efe1255d"; //This is the deploy address of taiko l2 wallet on mainnet
         string ownerAddress = "0xC14B11925dbfbb3Bfa174ABA8d5367766cC9C35E"; //Replace with your EOA owner address
-        string desiredPattern = "0xfudgey"; //Your desired pattern at the start of the address.
+        string desiredPattern = "0xfd6769"; //Your desired pattern at the start of the address.
 
         // Find the salt that generates the desired pattern
         //string matchingSalt = FindVanityAddress(ownerAddress, deployerAddress, desiredPattern);
@@ -35,9 +37,9 @@ class Program
             Salt = 0
         };
 
-        var domainSeparator = "0x1234567890abcdef..."; // Replace with the actual domain separator
+        var domainSeparator = "0x1f1d6b4c09bd592e8dd1785e134cf53fa08bd604a010399ef9fc5c7766d4c87f "; 
         var signHash = WalletHelper.ComputeSignHash(config, domainSeparator);
-        var privateKey = "0xabcdef..."; // Replace with the wallet owner's private key
+        var privateKey =  configuration["PrivateKey"]; 
         var signature = WalletHelper.SignHash(signHash, privateKey);
         Console.WriteLine($"Signature: {signature}");
     }
