@@ -37,11 +37,69 @@ class Program
             Salt = 0
         };
 
-        var domainSeparator = "0x1f1d6b4c09bd592e8dd1785e134cf53fa08bd604a010399ef9fc5c7766d4c87f "; 
-        var signHash = WalletHelper.ComputeSignHash(config, domainSeparator);
-        var privateKey =  configuration["PrivateKey"]; 
-        var signature = WalletHelper.SignHash(signHash, privateKey);
-        Console.WriteLine($"Signature: {signature}");
+        var domainSeparator = GenerateDomainSeparator("WalletFactory", "2.0.0", 167000, "0x23a19a97A2dA581e3d66Ef5Fd1eeA15024f55611");
+        var dataHash = GenerateDataHash(config);
+        var signHash = GenerateSignHash(domainSeparator, dataHash);
+
+        var signature = SignHash(signHash, configuration["PrivateKey"]);
+
+        Console.WriteLine("Signature: " + signature);
+    }
+
+    private static string GenerateDomainSeparator(string name, string version, int chainId, string verifyingContract)
+    {
+        var domainSeparator = new Sha3Keccack().CalculateHash(
+            new ABIEncode().GetABIEncoded(
+                new ABIValue("bytes32", "0x4392cdd6c9d91e0896c5def13bad6473db5d21e2b0def85ab8c2475c3e60d14c".HexToByteArray()),
+                new ABIValue("bytes32", new Sha3Keccack().CalculateHash(name).HexToByteArray()),
+                new ABIValue("bytes32", new Sha3Keccack().CalculateHash(version).HexToByteArray()),
+                new ABIValue("uint256", chainId),
+                new ABIValue("address", verifyingContract)
+            )
+        );
+
+        return domainSeparator.ToHex(true);
+    }
+
+    private static string GenerateDataHash(WalletConfig config)
+    {
+        var dataHash = new Sha3Keccack().CalculateHash(
+            new ABIEncode().GetABIEncodedPacked(
+                new ABIValue("bytes32", "0x1dc6f773c7e58a6ecbdfc6e724ea7fbc0c9a7f0485d3d207df5d3c5b7bda1847".HexToByteArray()),
+                new ABIValue("address", config.Owner),
+                new ABIValue("bytes32", new Sha3Keccack().CalculateHash(
+                    new ABIEncode().GetABIEncodedPacked(config.Guardians))),
+                new ABIValue("uint256", config.Quota),
+                new ABIValue("address", config.Inheritor),
+                new ABIValue("address", config.FeeRecipient),
+                new ABIValue("address", config.FeeToken),
+                new ABIValue("uint256", config.MaxFeeAmount),
+                new ABIValue("uint256", config.Salt)
+            )
+        );
+
+        return dataHash.ToHex(true);
+    }
+
+    private static string GenerateSignHash(string domainSeparator, string dataHash)
+    {
+        var signHash = new Sha3Keccack().CalculateHash(
+            new ABIEncode().GetABIEncodedPacked(
+                new ABIValue("string", "\x19\x01"),
+                new ABIValue("bytes32", domainSeparator.HexToByteArray()),
+                new ABIValue("bytes32", dataHash.HexToByteArray())
+            )
+        );
+
+        return signHash.ToHex(true);
+    }
+
+    private static string SignHash(string signHash, string privateKey)
+    {
+        var signer = new EthereumMessageSigner();
+        var signature = signer.EncodeUTF8AndSign(signHash, new EthECKey(privateKey));
+
+        return signature;
     }
 
     static string FindVanityAddress(string ownerAddress, string deployerAddress, string desiredPattern)
@@ -119,55 +177,5 @@ class Program
         return "0x" + salt.ToString("x64");
     }
 
-    public static class EIP712
-    {
-        public static string HashPacked(string domainSeparator, string dataHash)
-        {
-            var packedData = "0x1901" + domainSeparator.Substring(2) + dataHash.Substring(2);
-            return Sha3Keccack.Current.CalculateHashFromHex(packedData);
-        }
-    }
 
-    public static class WalletHelper
-    {
-        public static string ComputeSignHash(WalletConfig config, string domainSeparator)
-        {
-            var createWalletTypeHash = CreateWalletTypeHash();
-
-            var guardiansHex = config.Guardians.Select(guardian => guardian.StartsWith("0x") ? guardian.Substring(2) : guardian).ToArray();
-            var guardiansHash = Sha3Keccack.Current.CalculateHash(string.Join("", guardiansHex));
-
-            var dataInput = string.Concat(
-                createWalletTypeHash.Substring(2),
-                config.Owner.StartsWith("0x") ? config.Owner.Substring(2) : config.Owner,
-                guardiansHash,
-                config.Quota.ToString("x"),
-                config.Inheritor.StartsWith("0x") ? config.Inheritor.Substring(2) : config.Inheritor,
-                config.FeeRecipient.StartsWith("0x") ? config.FeeRecipient.Substring(2) : config.FeeRecipient,
-                config.FeeToken.StartsWith("0x") ? config.FeeToken.Substring(2) : config.FeeToken,
-                config.MaxFeeAmount.ToString("x"),
-                config.Salt.ToString("x")
-            );
-
-            var dataHash = Sha3Keccack.Current.CalculateHash(dataInput);
-
-            var signHash = EIP712.HashPacked(domainSeparator, dataHash);
-            return signHash;
-        }
-
-        public static string CreateWalletTypeHash()
-        {
-            string functionSignature = "createWallet(address owner,address[] guardians,uint256 quota,address inheritor,address feeRecipient,address feeToken,uint256 maxFeeAmount,uint256 salt)";
-            string typeHash = Sha3Keccack.Current.CalculateHash(functionSignature);
-            return typeHash;
-        }
-
-
-        public static string SignHash(string signHash, string privateKey)
-        {
-            var signer = new EthereumMessageSigner();
-            var signature = signer.EncodeUTF8AndSign(signHash, new EthECKey(privateKey));
-            return signature;
-        }
-    }
 }

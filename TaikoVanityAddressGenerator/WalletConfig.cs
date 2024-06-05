@@ -17,6 +17,5 @@ namespace TaikoVanityAddressGenerator
         public string FeeToken { get; set; }
         public BigInteger MaxFeeAmount { get; set; }
         public BigInteger Salt { get; set; }
-        public string Signature { get; set; }
     }
 }
