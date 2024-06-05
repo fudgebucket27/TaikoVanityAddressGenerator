@@ -48,9 +48,11 @@ class Program
 
     private static string GenerateDomainSeparator(string name, string version, int chainId, string verifyingContract)
     {
+        var eip712DomainTypeHash = new Sha3Keccack().CalculateHash("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+
         var domainSeparator = new Sha3Keccack().CalculateHash(
             new ABIEncode().GetABIEncoded(
-                new ABIValue("bytes32", "0x4392cdd6c9d91e0896c5def13bad6473db5d21e2b0def85ab8c2475c3e60d14c".HexToByteArray()),
+                new ABIValue("bytes32", eip712DomainTypeHash.HexToByteArray()),
                 new ABIValue("bytes32", new Sha3Keccack().CalculateHash(name).HexToByteArray()),
                 new ABIValue("bytes32", new Sha3Keccack().CalculateHash(version).HexToByteArray()),
                 new ABIValue("uint256", chainId),
@@ -63,9 +65,10 @@ class Program
 
     private static string GenerateDataHash(WalletConfig config)
     {
+        var walletTypeHash = new Sha3Keccack().CalculateHash("createWallet(address owner,address[] guardians,uint256 quota,address inheritor,address feeRecipient,address feeToken,uint256 maxFeeAmount,uint256 salt)");
         var dataHash = new Sha3Keccack().CalculateHash(
-            new ABIEncode().GetABIEncodedPacked(
-                new ABIValue("bytes32", "0x1dc6f773c7e58a6ecbdfc6e724ea7fbc0c9a7f0485d3d207df5d3c5b7bda1847".HexToByteArray()),
+            new ABIEncode().GetABIEncoded(
+                new ABIValue("bytes32", walletTypeHash.HexToByteArray()),
                 new ABIValue("address", config.Owner),
                 new ABIValue("bytes32", new Sha3Keccack().CalculateHash(
                     new ABIEncode().GetABIEncodedPacked(config.Guardians))),
