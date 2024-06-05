@@ -28,7 +28,7 @@ class Program
         var config = new WalletConfig
         {
             Owner = ownerAddress,
-            Guardians = new string[] {},
+            Guardians = new string[0],
             Quota = 0,
             Inheritor = "0x0000000000000000000000000000000000000000",
             FeeRecipient = "0xDd2A08a1c1A28c1A571E098914cA10F2877D9c97",
@@ -37,7 +37,7 @@ class Program
             Salt = 0
         };
 
-        var domainSeparator = GenerateDomainSeparator("WalletFactory", "2.0.0", 167000, "0x23a19a97A2dA581e3d66Ef5Fd1eeA15024f55611");
+        var domainSeparator = GenerateDomainSeparator("WalletFactory", "2.0.0", 167000, "0x239812E454021D4062979988623323648fACe8FF");
         var dataHash = GenerateDataHash(config);
         var signHash = GenerateSignHash(domainSeparator, dataHash);
 
@@ -66,12 +66,12 @@ class Program
     private static string GenerateDataHash(WalletConfig config)
     {
         var walletTypeHash = new Sha3Keccack().CalculateHash("createWallet(address owner,address[] guardians,uint256 quota,address inheritor,address feeRecipient,address feeToken,uint256 maxFeeAmount,uint256 salt)");
+        var guardiansAbi = new Sha3Keccack().CalculateHash(new ABIEncode().GetABIEncodedPacked(config.Guardians));
         var dataHash = new Sha3Keccack().CalculateHash(
             new ABIEncode().GetABIEncoded(
                 new ABIValue("bytes32", walletTypeHash.HexToByteArray()),
                 new ABIValue("address", config.Owner),
-                new ABIValue("bytes32", new Sha3Keccack().CalculateHash(
-                    new ABIEncode().GetABIEncodedPacked(config.Guardians))),
+                new ABIValue("bytes32", guardiansAbi),
                 new ABIValue("uint256", config.Quota),
                 new ABIValue("address", config.Inheritor),
                 new ABIValue("address", config.FeeRecipient),
